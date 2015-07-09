@@ -92,13 +92,15 @@ ipStepWorld t (a,c,st) = (a,c,IP.step t c a st)
 dpDraw :: Color -> DPWorld -> Picture
 dpDraw fc (_,c,dp) = Pictures [gridx,gridy,cart,pole1,ball1,pole2,ball2,info] where
   gc | fc == white = greyN 0.1 | otherwise = greyN 0.9
-  cposx = dp^.DP.cartPos
+  cposx = (DP.getPos dp) * ppm
   cartW = c^.DP.cartMass
   cartH = (c^.DP.cartMass) / 2
-  b1x = cposx + (c^.DP.poleLength1) * sin (dp^.DP.theta1)
-  b1y = (c^.DP.poleLength1) * cos (dp^.DP.theta1)
-  b2x = cposx + (c^.DP.poleLength2) * sin (dp^.DP.theta2)
-  b2y = (c^.DP.poleLength2) * cos (dp^.DP.theta2)
+  pL1 = (c^.DP.poleLength1) * ppm
+  pL2 = (c^.DP.poleLength2) * ppm
+  b1x = cposx + pL1 * sin (DP.getTh1 dp)
+  b1y = pL1 * cos (DP.getTh1 dp)
+  b2x = cposx + pL2 * sin (DP.getTh2 dp)
+  b2y = pL2 * cos (DP.getTh2 dp)
   cart = Color fc $ translate cposx 0 (rectangleWire cartW cartH)
   pole1 = Color fc $ line [(cposx,0),(b1x,b1y)]
   ball1 = Color fc $ translate b1x b1y $ Circle (c^.DP.poleMass1)
@@ -110,8 +112,8 @@ dpDraw fc (_,c,dp) = Pictures [gridx,gridy,cart,pole1,ball1,pole2,ball2,info] wh
          Translate (windowW/(-2) + 10) (windowH/(-2) + 10) $
          Scale 0.1 0.1 $ 
          Text $ "cart_x: " ++ fmtFloat cposx 2 ++
-                " | theta 1: " ++ fmtFloat (dp^.DP.theta1) 2 ++
-                " | theta2: " ++ fmtFloat (dp^.DP.theta2) 2
+                " | theta 1: " ++ fmtFloat (DP.getTh1 dp) 2 ++
+                " | theta2: " ++ fmtFloat (DP.getTh2 dp) 2
 
 
 
@@ -123,7 +125,7 @@ dpHandleInput e w = w
 
 
 dpStepWorld :: Float -> DPWorld -> DPWorld
-dpStepWorld t (action,c,dp) = (0.5,c,DP.step c action dp)
+dpStepWorld t (action,c,dp) = (0.5,c,DP.step t c action dp)
 
 
 fmtFloat :: Float -> Int -> String
