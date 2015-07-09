@@ -5,7 +5,6 @@ import Control.Lens
 
 data Config = Config { _maxTimeSteps    :: Int
                      , _gravity         :: Float
-                     , _frictionCoeff   :: Float
                      , _cartMass        :: Float
                      , _poleLength1     :: Float
                      , _poleLength2     :: Float
@@ -31,15 +30,14 @@ data State = State { _cartPos     :: Float
 makeLenses ''State
 
 defaultConfig = Config { _maxTimeSteps    = 10000
-                       , _gravity         = -9.80
-                       , _frictionCoeff   = 0.1
+                       , _gravity         = -9.8
                        , _cartMass        = 10
-                       , _poleLength1     = 2.0
-                       , _poleLength2     = 1.0
-                       , _poleMass1       = 0.4
-                       , _poleMass2       = 0.2
-                       , _deltaTime       = 1 / 60
-                       , _angleThreshold  = pi / 5.0
+                       , _poleLength1     = 50
+                       , _poleLength2     = 5
+                       , _poleMass1       = 4.0
+                       , _poleMass2       = 0.1
+                       , _deltaTime       = 1/60
+                       , _angleThreshold  = pi/5.0
                        , _trackLength     = 800
                        , _maxAngVel       = 1.0
                        , _maxVelocity     = 1.0
@@ -72,8 +70,8 @@ stepH config action st = st' where
   ml2 = (config^.poleLength2) * (config^.poleMass2)
   av1 = st^.angularVel1
   av2 = st^.angularVel2
-  t1 = 0.000002 * av1 / ml1
-  t2 = 0.000002 * av2 / ml2
+  t1 = av1 / ml1
+  t2 = av2 / ml2
   fi1 = ml1 * av1 * av1 * sinTheta1 + 0.75 * (config^.poleMass1) * cosTheta1 * (t1 + gsinTheta1)
   fi2 = ml2 * av2 * av2 * sinTheta2 + 0.75 * (config^.poleMass2) * cosTheta2 * (t2 + gsinTheta2)
   mi1 = (config^.poleMass1) * (1 - (0.75 * cosTheta1 * cosTheta1))

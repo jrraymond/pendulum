@@ -35,24 +35,23 @@ getAngVel (State xs) = xs !! 3
 defaultConfig :: Config
 defaultConfig = Config { _maxTimeSteps    = 10000
                        , _cartMass        = 10.0
-                       , _pendulumMass    = 2.0
-                       , _pendulumLength  = 10
+                       , _pendulumMass    = 10.0
+                       , _pendulumLength  = 1.0
                        , _trackLength     = 800
                        , _deltaTime       = 1/60
-                       , _gravity         = -9.8
+                       , _gravity         = 9.8
                        , _maxAngVelocity  = 1.0
                        , _maxVelocity     = 1.0
-                       , _forceMultiplier = 100 }
+                       , _forceMultiplier = 4 }
 
 
 initState :: Config -> State
-initState c = State [ 0, 0, 0.01, 0 ]
+initState c = State [ 0, 0, 0.10, 0 ]
 
 
-step :: Config -> Float -> State -> State
-step c action (State st) = State st'' where
-  st' = rungeKutta (stepFunc c action) (c^.deltaTime) st
-  st'' = rungeKutta (stepFunc c action) (c^.deltaTime) st'
+step :: Float -> Config -> Float -> State -> State
+step dt c action (State st0) = State st1 where
+  st1 = rungeKutta (stepFunc c action) dt st0
   stepFunc :: Config -> Float -> [Float] -> [Float]
   stepFunc c a st = let (State st') = stepH c a (State st) in st'
 
@@ -70,8 +69,8 @@ stepH c action st = State st' where
   sinTh = sin theta
   d1 = mc + mp - mp * cosTh
   d2 = l * (mc + mp - mp * cosTh ^ 2)
-  ac = (f - l * mp * av ^ 2 * sinTh + mp * g * sinTh * cosTh) / d1
-  aac = (f * cosTh + (mc + mp) * sinTh - l * mp * av ^ 2  * sinTh * cosTh) / d2
+  ac = (f + l * mp * av ^ 2 * sinTh - mp * g * sinTh * cosTh) / d1
+  aac = (f * cosTh + (mc + mp) * g * sinTh - l * mp * av ^ 2  * sinTh * cosTh) / d2
   st' = [getCartVel st, ac, getAngVel st, aac]
 
 
