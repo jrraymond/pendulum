@@ -1,7 +1,7 @@
 {-# LANGUAGE PatternGuards #-}
 
 import qualified DoublePole as DP
-import qualified InvertedPendulum as IP
+import qualified SinglePole as SP
 
 import Control.Lens
 import Graphics.Gloss
@@ -9,8 +9,8 @@ import qualified Graphics.Gloss.Interface.Pure.Game as G
 import Numeric
 import Options.Applicative
 
-type DPWorld = (Float,DP.Config,DP.State)
-type IPWorld = (Float,IP.Config,IP.State)
+type DPWorld = (Ordering,DP.Config,DP.State)
+type SPWorld = (Ordering,SP.Config,SP.State)
 
 windowW = 1200
 windowH = 800
@@ -31,7 +31,7 @@ startPlay (b,c) = let background | c = black | otherwise = white
                                         (floor windowW,floor windowH) 
                                         (100,100)
                   in if b then dpPlay window background foreground rate
-                          else ipPlay window background foreground rate
+                          else spPlay window background foreground rate
 
 
 optsParser :: Parser (Bool,Bool)
@@ -41,58 +41,62 @@ optsParser = (,) <$> switch (short 'd' <> long "double" <>
                              help "Dark background")
 
 
-ipPlay w bc fc rate = play w bc rate
-                       (0.5,IP.defaultConfig,IP.initState IP.defaultConfig)
-                       (ipDraw fc)
-                       ipHandleInput
-                       ipStepWorld
-
+spPlay w bc fc rate = play w bc rate
+                       (EQ,SP.defaultConfig,SP.initState SP.defaultConfig)
+                       (spDraw fc)
+                       spHandleInput
+                       spStepWorld
 
 dpPlay w bc fc rate = play w bc rate 
-                           (0.5,DP.defaultConfig,DP.initState DP.defaultConfig)
+                           (EQ,DP.defaultConfig,DP.initState DP.defaultConfig)
                            (dpDraw fc)
                            dpHandleInput
                            dpStepWorld
 
-
-ipDraw :: Color -> IPWorld -> Picture
-ipDraw fc (_,c,st) = Pictures [gridx,gridy,cart,pole,ball,info] where
-  cposx = IP.getCartPos st * ppm
-  theta = IP.getTheta st
-  cartW = c^.IP.cartMass
-  cartH = (c^.IP.cartMass) / 2
-  pL = (c^.IP.pendulumLength) * ppm
+spDraw :: Color -> SPWorld -> Picture
+spDraw fc (_,c,st) = Pictures [gridx,gridy,cart,pole,ball,info] where
+  cposx = SP.getPos st * ppm
+  theta = SP.getTh st
+  cartW = c^.SP.cartMass
+  cartH = (c^.SP.cartMass) / 2
+  pL = (c^.SP.poleLength) * ppm
   b1x = cposx + pL * sin theta
   b1y = pL * cos theta
   cart = Color fc $ translate cposx 0 (rectangleWire cartW cartH)
   pole = Color fc $ line [(cposx,0),(b1x,b1y)]
-  ball = Color fc $ translate b1x b1y $ Circle (c^.IP.pendulumMass)
+  ball = Color fc $ translate b1x b1y $ Circle (c^.SP.poleMass)
   gc | fc == white = greyN 0.1 | otherwise = greyN 0.9
   gridx = Color gc $ Line [(negate windowW,0),(windowW,0)]
   gridy = Color gc $ Line [(0,negate windowH),(0,windowH)]
   info = Color fc $ Translate (windowW/(-2) + 10) (windowH/(-2) + 10) 
                   $ Scale 0.1 0.1 
                   $ Text $ "cart_x: " ++ fmtFloat cposx 2 ++
-                           " | vel: " ++ fmtFloat (IP.getCartVel st) 2 ++
+                           " | vel: " ++ fmtFloat (SP.getVel st) 2 ++
                            " | theta: " ++ fmtFloat theta 2 ++
-                           " | angVel: " ++ fmtFloat (IP.getAngVel st) 2
+                           " | angVel: " ++ fmtFloat (SP.getAV st) 2
 
 
-ipHandleInput :: G.Event -> IPWorld -> IPWorld
-ipHandleInput (G.EventKey key keystate _ _) (_,c,st) 
-  | G.SpecialKey G.KeyLeft  <- key, G.Down <- keystate = (0,c,st)
-  | G.SpecialKey G.KeyRight <- key, G.Down <- keystate = (1,c,st)
-ipHandleInput e w = w
+spHandleInput :: G.Event -> SPWorld -> SPWorld
+spHandleInput (G.EventKey key keystate _ _) (_,c,st) 
+  | G.SpecialKey G.KeyLeft  <- key, G.Down <- keystate = (LT,c,st)
+  | G.SpecialKey G.KeyLeft  <- key, G.Up <- keystate = (EQ,c,st)
+  | G.SpecialKey G.KeyRight <- key, G.Down <- keystate = (GT,c,st)
+  | G.SpecialKey G.KeyRight <- key, G.Up <- keystate = (EQ,c,st)
+  | G.MouseButton _ <- key = (EQ,c,SP.State [0,0,0,0])
+spHandleInput e w = w
 
 
-ipStepWorld :: Float -> IPWorld -> IPWorld
-ipStepWorld t (a,c,st) = (a,c,IP.step t c a st)
+spStepWorld :: Float -> SPWorld -> SPWorld
+spStepWorld t (a,c,st) 
+  | a == LT = (a,c,SP.step t c 0 st)
+  | a == GT = (a,c,SP.step t c 1 st)
+  | otherwise = (a,c,SP.step t c 0.5 st)
 
 
 dpDraw :: Color -> DPWorld -> Picture
 dpDraw fc (_,c,dp) = Pictures [gridx,gridy,cart,pole1,ball1,pole2,ball2,info] where
   gc | fc == white = greyN 0.1 | otherwise = greyN 0.9
-  cposx = (DP.getPos dp) * ppm
+  cposx = DP.getPos dp * ppm
   cartW = c^.DP.cartMass
   cartH = (c^.DP.cartMass) / 2
   pL1 = (c^.DP.poleLength1) * ppm
@@ -118,14 +122,20 @@ dpDraw fc (_,c,dp) = Pictures [gridx,gridy,cart,pole1,ball1,pole2,ball2,info] wh
 
 
 dpHandleInput :: G.Event -> DPWorld -> DPWorld
-dpHandleInput (G.EventKey key keystate _ _) (_,c,dp) 
-  | G.SpecialKey G.KeyLeft  <- key, G.Down <- keystate = (0,c,dp)
-  | G.SpecialKey G.KeyRight <- key, G.Down <- keystate = (1,c,dp)
+dpHandleInput (G.EventKey key keystate _ _) (_,c,st) 
+  | G.SpecialKey G.KeyLeft  <- key, G.Down <- keystate = (LT,c,st)
+  | G.SpecialKey G.KeyLeft  <- key, G.Up <- keystate = (EQ,c,st)
+  | G.SpecialKey G.KeyRight <- key, G.Down <- keystate = (GT,c,st)
+  | G.SpecialKey G.KeyRight <- key, G.Up <- keystate = (EQ,c,st)
+  | G.MouseButton _ <- key = (EQ,c,DP.State [0,0,0,0,0,0])
 dpHandleInput e w = w
 
 
 dpStepWorld :: Float -> DPWorld -> DPWorld
-dpStepWorld t (action,c,dp) = (0.5,c,DP.step t c action dp)
+dpStepWorld t (a,c,dp) 
+  | a == LT = (a,c,DP.step t c 0 dp)
+  | a == GT = (a,c,DP.step t c 1 dp)
+  | a == EQ = (a,c,DP.step t c 0.5 dp)
 
 
 fmtFloat :: Float -> Int -> String
