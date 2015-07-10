@@ -30,8 +30,8 @@ getAV (State xs) = xs !! 3
 defaultConfig :: Config
 defaultConfig = Config { _maxTimeSteps    = 10000
                        , _cartMass        = 10.0
-                       , _poleMass    = 10.0
-                       , _poleLength  = 1.0
+                       , _poleMass        = 10.0
+                       , _poleLength      = 1.0
                        , _trackLength     = 800
                        , _deltaTime       = 1/60
                        , _gravity         = 9.8
@@ -61,8 +61,7 @@ stepH c action st = State st' where
   av = getAV st
   cosTh = cos theta
   sinTh = sin theta
-  d1 = mc + mp - mp * cosTh
-  d2 = l * (mc + mp - mp * cosTh ^ 2)
+  d1 = l * (mc + mp - mp * cosTh ^ 2)
   ac = (f + l * mp * av ^ 2 * sinTh - mp * g * sinTh * cosTh) / d1
-  aac = (f * cosTh + (mc + mp) * g * sinTh - l * mp * av ^ 2  * sinTh * cosTh) / d2
+  aac = (g * sinTh - cosTh * ac) / l
   st' = [getVel st, ac, getAV st, aac]
