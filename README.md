@@ -9,4 +9,4 @@ Available options:
   -d,--double              Double inverted pendulum
   -n,--night               Dark background
 ```
-![Screenshot](https://raw.github.com/jrraymond/pendulum/master/penulum.png)
+![Screenshot](https://raw.github.com/jrraymond/pendulum/master/penulums.png)
